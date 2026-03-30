@@ -1,0 +1,10 @@
+{
+  "name": "School Project Tracker",
+  "short_name": "ProjectTracker",
+  "description": "School project collaboration, procurement, and finance tracker.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5efe3",
+  "theme_color": "#ad6a2d",
+  "icons": []
+}

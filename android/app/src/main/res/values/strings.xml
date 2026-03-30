@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">School Project Tracker</string>
+    <string name="title_activity_main">School Project Tracker</string>
+    <string name="package_name">com.school.projecttracker</string>
+    <string name="custom_url_scheme">com.school.projecttracker</string>
+</resources>
