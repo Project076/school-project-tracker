@@ -19,6 +19,7 @@ type DashboardTab = "projects" | "users" | "notifications";
 type UserFormState = {
   name: string;
   email: string;
+  password: string;
   role: UserRole;
 };
 
@@ -27,13 +28,15 @@ export function Dashboard({ filters }: DashboardProps) {
     createProject,
     createUser,
     currentUser,
+    isAuthenticated,
     deleteUser,
     deleteProject,
     dismissNotification,
     hydrated,
     notifications,
     projects,
-    switchUser,
+    signIn,
+    signOut,
     updateUser,
     users
   } = useAppState();
@@ -53,30 +56,49 @@ export function Dashboard({ filters }: DashboardProps) {
   const [userForm, setUserForm] = useState<UserFormState>({
     name: "",
     email: "",
+    password: "",
     role: "Member"
   });
+  const [authForm, setAuthForm] = useState({
+    email: "",
+    password: ""
+  });
+  const [authFeedback, setAuthFeedback] = useState("");
 
   useEffect(() => {
     setProjectSearch(filters.q ?? "");
   }, [filters.q]);
 
-  const vendors = Array.from(new Set(projects.map((project) => project.vendor)));
-  const totalSpend = projects
+  const visibleProjects = useMemo(
+    () =>
+      isAuthenticated
+        ? projects.filter(
+            (project) =>
+              currentUser.role === "Admin" ||
+              project.projectManagerId === currentUser.id ||
+              project.memberIds.includes(currentUser.id)
+          )
+        : [],
+    [currentUser.id, currentUser.role, isAuthenticated, projects]
+  );
+
+  const vendors = Array.from(new Set(visibleProjects.map((project) => project.vendor)));
+  const totalSpend = visibleProjects
     .flatMap((project) => project.invoices)
     .reduce((sum, invoice) => sum + invoice.payments.reduce((paid, entry) => paid + entry.amount, 0), 0);
-  const totalBalance = projects
+  const totalBalance = visibleProjects
     .flatMap((project) => project.invoices)
     .reduce((sum, invoice) => sum + getBalanceDue(invoice.amount, invoice.payments), 0);
 
   const filteredProjects = useMemo(
     () =>
-      projects.filter((project) => {
+      visibleProjects.filter((project) => {
         const matchesQuery =
           !projectSearch || project.title.toLowerCase().includes(projectSearch.toLowerCase());
 
         return matchesQuery;
       }),
-    [projectSearch, projects]
+    [projectSearch, visibleProjects]
   );
 
   const myProjects = filteredProjects;
@@ -108,7 +130,61 @@ export function Dashboard({ filters }: DashboardProps) {
   function resetUserForm() {
     setEditingUserId(null);
     setShowUserComposer(false);
-    setUserForm({ name: "", email: "", role: "Member" });
+    setUserForm({ name: "", email: "", password: "", role: "Member" });
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <main className="page-shell">
+        <section className="hero" style={{ maxWidth: 560, margin: "40px auto 0" }}>
+          <div className="panel stack" style={{ gap: 18 }}>
+            <div className="compact-title">
+              <p className="eyebrow">School Project Tracker</p>
+              <h2>Sign in</h2>
+            </div>
+            <p className="subtle">Only logged-in users can open the dashboard. Admin can create more users after signing in.</p>
+            <form
+              className="stack"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const result = signIn(authForm.email, authForm.password);
+                setAuthFeedback(result.message);
+
+                if (result.ok) {
+                  setAuthForm({ email: "", password: "" });
+                }
+              }}
+            >
+              <input
+                placeholder="Email"
+                style={inputStyle}
+                value={authForm.email}
+                onChange={(event) => setAuthForm((value) => ({ ...value, email: event.target.value }))}
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                style={inputStyle}
+                value={authForm.password}
+                onChange={(event) => setAuthForm((value) => ({ ...value, password: event.target.value }))}
+              />
+              {authFeedback ? (
+                <div className={`form-feedback ${authFeedback.startsWith("Welcome") ? "success" : "error"}`}>
+                  {authFeedback}
+                </div>
+              ) : null}
+              <button className="button-primary" type="submit">
+                Sign in
+              </button>
+            </form>
+            <div className="activity-item">
+              <p className="label">Starter access</p>
+              <p className="subtle">Use the initial admin account details provided during setup, then create role-based users from the Admin panel.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -118,7 +194,12 @@ export function Dashboard({ filters }: DashboardProps) {
           <p className="eyebrow">School Project Tracker</p>
           <h3>{roleTitle(currentUser.role)}</h3>
         </div>
-        <span className="pill">{hydrated ? "Saved locally" : "Loading"}</span>
+        <div className="inline-list">
+          <span className="pill">{hydrated ? "Saved locally" : "Loading"}</span>
+          <button type="button" className="button-ghost" onClick={signOut}>
+            Sign out
+          </button>
+        </div>
       </div>
 
       <section className="hero">
@@ -138,24 +219,14 @@ export function Dashboard({ filters }: DashboardProps) {
               <p className="label">Signed in as</p>
               <h3>{currentUser.name}</h3>
               <p className="subtle">{currentUser.role}</p>
-              <select
-                value={currentUser.id}
-                onChange={(event) => switchUser(event.target.value)}
-                style={{ ...inputStyle, marginTop: 12 }}
-              >
-                {activeUsers.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} - {user.role}
-                  </option>
-                ))}
-              </select>
+              <p className="subtle" style={{ marginTop: 12 }}>{currentUser.email}</p>
             </div>
           </div>
         </div>
 
         {currentUser.role === "Admin" ? (
           <div className="stats-grid">
-            <MetricCard label="Total projects" value={projects.length} note="Across all teams" />
+            <MetricCard label="Total projects" value={visibleProjects.length} note="Across all teams" />
             <MetricCard label="Users" value={activeUsers.length} note="Active accounts" />
             <MetricCard label="Payments logged" value={formatCurrency(totalSpend)} note="Tracked spend" />
             <MetricCard label="Balance due" value={formatCurrency(totalBalance)} note="Outstanding amount" />
@@ -454,6 +525,13 @@ export function Dashboard({ filters }: DashboardProps) {
                       value={userForm.email}
                       onChange={(event) => setUserForm((value) => ({ ...value, email: event.target.value }))}
                     />
+                    <input
+                      type="password"
+                      placeholder={editingUserId ? "New password (leave blank to keep current)" : "Password"}
+                      style={inputStyle}
+                      value={userForm.password}
+                      onChange={(event) => setUserForm((value) => ({ ...value, password: event.target.value }))}
+                    />
                     <select
                       style={inputStyle}
                       value={userForm.role}
@@ -503,6 +581,7 @@ export function Dashboard({ filters }: DashboardProps) {
                             setUserForm({
                               name: user.name,
                               email: user.email,
+                              password: "",
                               role: user.role
                             });
                           }}

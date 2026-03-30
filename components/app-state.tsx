@@ -69,11 +69,16 @@ type AddPaymentInput = {
 type CreateUserInput = {
   name: string;
   email: string;
+  password: string;
   role: User["role"];
 };
 
-type UpdateUserInput = CreateUserInput & {
+type UpdateUserInput = {
   userId: string;
+  name: string;
+  email: string;
+  password?: string;
+  role: User["role"];
 };
 
 type ActionResult = {
@@ -95,9 +100,11 @@ type AppStateValue = {
   users: User[];
   projects: Project[];
   currentUser: User;
+  isAuthenticated: boolean;
   notifications: NotificationItem[];
   hydrated: boolean;
-  switchUser: (userId: string) => void;
+  signIn: (email: string, password: string) => ActionResult;
+  signOut: () => void;
   createUser: (input: CreateUserInput) => void;
   updateUser: (input: UpdateUserInput) => void;
   deleteUser: (userId: string) => void;
@@ -143,6 +150,23 @@ function dedupeProjectMessages(project: Project) {
         ...project,
         messages
       };
+}
+
+function normalizeUsersForAuth(users: User[]) {
+  return users.map((user) => {
+    if (user.password) {
+      return user;
+    }
+
+    const seedMatch =
+      seedUsers.find((seedUser) => seedUser.id === user.id) ??
+      seedUsers.find((seedUser) => seedUser.email.toLowerCase() === user.email.toLowerCase());
+
+    return {
+      ...user,
+      password: seedMatch?.password ?? "ChangeMe123"
+    };
+  });
 }
 
 function normalizeProjectsForAssignments(projects: Project[], users: User[]) {
@@ -222,9 +246,9 @@ function getNextAdvanceReference(request: PurchaseRequest) {
 }
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
-  const [users, setUsers] = useState<User[]>(seedUsers);
+  const [users, setUsers] = useState<User[]>(() => normalizeUsersForAuth(seedUsers));
   const [projects, setProjects] = useState<Project[]>(() => normalizeProjectsForAssignments(seedProjects, seedUsers));
-  const [currentUserId, setCurrentUserId] = useState<string>(seedUsers[1].id);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
@@ -235,15 +259,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const parsed = JSON.parse(stored) as {
         users?: User[];
         projects: Project[];
-        currentUserId: string;
+        currentUserId?: string | null;
         notifications: NotificationItem[];
       };
 
-      if (parsed.users?.length) {
-        setUsers(parsed.users);
-      }
-      setProjects(normalizeProjectsForAssignments(parsed.projects, parsed.users?.length ? parsed.users : seedUsers));
-      setCurrentUserId(parsed.currentUserId);
+      const normalizedUsers = normalizeUsersForAuth(parsed.users?.length ? parsed.users : seedUsers);
+
+      setUsers(normalizedUsers);
+      setProjects(normalizeProjectsForAssignments(parsed.projects, normalizedUsers));
+      setCurrentUserId(parsed.currentUserId ?? null);
       setNotifications(parsed.notifications);
     }
 
@@ -262,9 +286,18 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [currentUserId, hydrated, notifications, projects, users]);
 
   const currentUser = useMemo(
-    () => users.find((user) => user.id === currentUserId) ?? users[0],
+    () => users.find((user) => user.id === currentUserId) ?? users.find((user) => user.active !== false) ?? users[0],
     [currentUserId, users]
   );
+  const isAuthenticated = Boolean(
+    currentUserId && users.some((user) => user.id === currentUserId && user.active !== false)
+  );
+
+  useEffect(() => {
+    if (currentUserId && !users.some((user) => user.id === currentUserId && user.active !== false)) {
+      setCurrentUserId(null);
+    }
+  }, [currentUserId, users]);
 
   function pushNotification(title: string, body: string) {
     setNotifications((items) => [
@@ -301,12 +334,42 @@ function addAudit(project: Project, message: string) {
     users,
     projects,
     currentUser,
+    isAuthenticated,
     notifications,
     hydrated,
-    switchUser: setCurrentUserId,
+    signIn: (email, password) => {
+      const normalizedEmail = email.trim().toLowerCase();
+      const targetUser = users.find(
+        (user) =>
+          user.active !== false &&
+          user.email.toLowerCase() === normalizedEmail &&
+          user.password === password
+      );
+
+      if (!targetUser) {
+        return {
+          ok: false,
+          message: "Invalid email or password."
+        };
+      }
+
+      setCurrentUserId(targetUser.id);
+      return {
+        ok: true,
+        message: `Welcome back, ${targetUser.name}.`
+      };
+    },
+    signOut: () => {
+      setCurrentUserId(null);
+    },
     createUser: (input) => {
       if (currentUser.role !== "Admin") {
         pushNotification("Permission denied", "Only Admins can create users.");
+        return;
+      }
+
+      if (!input.name.trim() || !input.email.trim() || !input.password.trim()) {
+        pushNotification("Missing fields", "Name, email, and password are required.");
         return;
       }
 
@@ -314,6 +377,7 @@ function addAudit(project: Project, message: string) {
         id: `u-${Date.now()}`,
         name: input.name,
         email: input.email,
+        password: input.password,
         role: input.role,
         active: true
       };
@@ -324,6 +388,11 @@ function addAudit(project: Project, message: string) {
     updateUser: (input) => {
       if (currentUser.role !== "Admin") {
         pushNotification("Permission denied", "Only Admins can update users.");
+        return;
+      }
+
+      if (!input.name.trim() || !input.email.trim()) {
+        pushNotification("Missing fields", "Name and email are required.");
         return;
       }
 
@@ -346,6 +415,7 @@ function addAudit(project: Project, message: string) {
                 ...user,
                 name: input.name,
                 email: input.email,
+                password: input.password?.trim() ? input.password : user.password,
                 role: input.role,
                 active: user.active ?? true
               }

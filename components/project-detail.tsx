@@ -17,7 +17,7 @@ type FinanceComposer = "pr" | "invoice" | "payment" | null;
 
 export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
   const state = useAppState();
-  const { syncInboundReplies } = state;
+  const { isAuthenticated, syncInboundReplies } = state;
   const params = useParams<{ id: string }>();
   const resolvedProjectId = projectId ?? params.id;
   const project = state.projects.find((item) => item.id === resolvedProjectId);
@@ -73,7 +73,7 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
   const chatBodyInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
-    if (activeTab !== "chat") {
+    if (!isAuthenticated || activeTab !== "chat") {
       return;
     }
 
@@ -83,7 +83,19 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
     }, 12000);
 
     return () => window.clearInterval(intervalId);
-  }, [activeTab, resolvedProjectId, syncInboundReplies]);
+  }, [activeTab, isAuthenticated, resolvedProjectId, syncInboundReplies]);
+
+  if (!isAuthenticated) {
+    return (
+      <main className="page-shell">
+        <div className="panel">
+          <h2>Login required</h2>
+          <p className="subtle" style={{ marginTop: 8 }}>Please sign in first to open project details.</p>
+          <p style={{ marginTop: 16 }}><Link href="/">Return to sign in</Link></p>
+        </div>
+      </main>
+    );
+  }
 
   if (!project) {
     return (
@@ -91,6 +103,23 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
         <div className="panel">
           <h2>Project not found</h2>
           <p className="subtle" style={{ marginTop: 8 }}>The requested project does not exist.</p>
+          <p style={{ marginTop: 16 }}><Link href="/">Return to dashboard</Link></p>
+        </div>
+      </main>
+    );
+  }
+
+  const canViewProject =
+    state.currentUser.role === "Admin" ||
+    project.projectManagerId === state.currentUser.id ||
+    project.memberIds.includes(state.currentUser.id);
+
+  if (!canViewProject) {
+    return (
+      <main className="page-shell">
+        <div className="panel">
+          <h2>Access denied</h2>
+          <p className="subtle" style={{ marginTop: 8 }}>You do not have permission to view this project.</p>
           <p style={{ marginTop: 16 }}><Link href="/">Return to dashboard</Link></p>
         </div>
       </main>

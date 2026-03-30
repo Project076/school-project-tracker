@@ -1,10 +1,10 @@
 import { Project, User } from "@/lib/types";
 
 export const users: User[] = [
-  { id: "u1", name: "Asha Menon", email: "asha@school.org", role: "Admin", active: true },
-  { id: "u2", name: "Rahul Bose", email: "rahul@school.org", role: "Project Manager", active: true },
-  { id: "u3", name: "Priya Shah", email: "priya@school.org", role: "Member", active: true },
-  { id: "u4", name: "Greenline Systems", email: "ops@greenline.example", role: "Member", active: true }
+  { id: "u1", name: "Asha Menon", email: "asha@school.org", password: "Admin@123", role: "Admin", active: true },
+  { id: "u2", name: "Rahul Bose", email: "rahul@school.org", password: "Pm@123", role: "Project Manager", active: true },
+  { id: "u3", name: "Priya Shah", email: "priya@school.org", password: "Member@123", role: "Member", active: true },
+  { id: "u4", name: "Greenline Systems", email: "ops@greenline.example", password: "Vendor@123", role: "Member", active: true }
 ];
 
 export const projects: Project[] = [
