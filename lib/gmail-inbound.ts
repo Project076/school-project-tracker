@@ -57,7 +57,14 @@ export async function syncInboundRepliesFromGmail() {
       maxUid = Math.max(maxUid, message.uid);
 
       const parsed = await simpleParser(message.source);
-      const projectId = extractProjectId(message.envelope?.to ?? [], parsed.to?.value ?? [], parsed.cc?.value ?? []);
+      const parsedText = parsed.text || "";
+      const projectId = extractProjectId({
+        envelopeTo: message.envelope?.to ?? [],
+        parsedTo: parsed.to?.value ?? [],
+        parsedCc: parsed.cc?.value ?? [],
+        subject: parsed.subject || "",
+        text: parsedText
+      });
       if (!projectId) {
         continue;
       }
@@ -73,7 +80,7 @@ export async function syncInboundRepliesFromGmail() {
         continue;
       }
 
-      const body = extractLatestReply(parsed.text || "");
+      const body = extractLatestReply(parsedText);
       if (!body) {
         continue;
       }
@@ -133,12 +140,14 @@ async function writeStore(store: EmailSyncStore) {
   await fs.writeFile(storePath, JSON.stringify(store, null, 2), "utf8");
 }
 
-function extractProjectId(
-  envelopeTo: Array<{ address?: string | null }> = [],
-  parsedTo: Array<{ address?: string | null }> = [],
-  parsedCc: Array<{ address?: string | null }> = []
-) {
-  const addresses = [...envelopeTo, ...parsedTo, ...parsedCc]
+function extractProjectId(input: {
+  envelopeTo?: Array<{ address?: string | null }>;
+  parsedTo?: Array<{ address?: string | null }>;
+  parsedCc?: Array<{ address?: string | null }>;
+  subject?: string;
+  text?: string;
+}) {
+  const addresses = [...(input.envelopeTo ?? []), ...(input.parsedTo ?? []), ...(input.parsedCc ?? [])]
     .map((entry) => entry.address?.toLowerCase())
     .filter((value): value is string => Boolean(value));
 
@@ -148,6 +157,11 @@ function extractProjectId(
     if (match?.[1]) {
       return match[1];
     }
+  }
+
+  const threadTokenMatch = `${input.subject ?? ""}\n${input.text ?? ""}`.match(/project-thread:([a-z0-9-]+)/i);
+  if (threadTokenMatch?.[1]) {
+    return threadTokenMatch[1];
   }
 
   return null;
