@@ -86,7 +86,8 @@ export async function sendProjectChatEmail(input: OutboundChatEmailInput) {
       `${input.authorName} posted a new project update.\n\n` +
       `Project: ${input.projectTitle} (${input.projectCode})\n` +
       `Thread token: ${threadToken}\n` +
-      `Reply address: ${projectReplyAddress}\n\n` +
+      `Reply address: ${projectReplyAddress}\n` +
+      `Reply instruction: Please use Reply all and keep ${projectReplyAddress} in To/CC so the reply syncs back into the app.\n\n` +
       `${input.body}` +
       historyText,
     html: `
@@ -95,6 +96,10 @@ export async function sendProjectChatEmail(input: OutboundChatEmailInput) {
         <p><strong>Project:</strong> ${input.projectTitle} (${input.projectCode})</p>
         <p><strong>Thread token:</strong> ${threadToken}</p>
         <p><strong>Reply address:</strong> ${escapeHtml(projectReplyAddress)}</p>
+        <div style="padding: 10px 12px; background: #eef6ff; border: 1px solid #c9dcf8; border-radius: 10px; margin-top: 10px;">
+          <strong>Reply instruction:</strong> Please use <strong>Reply all</strong> and keep
+          <strong> ${escapeHtml(projectReplyAddress)}</strong> in To/CC so the reply syncs back into the app.
+        </div>
         <div style="padding: 12px 14px; background: #f7f1e7; border-radius: 10px; margin-top: 12px;">
           ${escapeHtml(input.body).replace(/\n/g, "<br />")}
         </div>

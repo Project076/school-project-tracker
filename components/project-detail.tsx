@@ -330,6 +330,9 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
                     }}
                   >
                     <p className="eyebrow">Compose</p>
+                    <div className="form-feedback success" style={{ marginTop: 12 }}>
+                      Ask recipients to use Reply all and keep the tracked project mailbox in To or CC so their email replies sync back into this chat.
+                    </div>
                     <div className="recipient-grid" style={{ marginTop: 12 }}>
                       <div className="recipient-panel">
                         <p className="label">To</p>
