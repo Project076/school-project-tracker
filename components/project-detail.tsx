@@ -81,6 +81,11 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
   const [expandedPurchaseRequests, setExpandedPurchaseRequests] = useState<Record<string, boolean>>({});
   const [expandedReferences, setExpandedReferences] = useState<Record<string, boolean>>({});
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<{
+    name: string;
+    dataUrl?: string;
+    mimeType?: string;
+  } | null>(null);
   const invoiceAttachmentInputRef = useRef<HTMLInputElement | null>(null);
   const chatBodyInputRef = useRef<HTMLTextAreaElement | null>(null);
   const chatAttachmentInputRef = useRef<HTMLInputElement | null>(null);
@@ -616,21 +621,25 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
                       {message.attachments.length > 0 ? (
                         <div className="inline-list attachment-preview-list" style={{ marginTop: 12 }}>
                           {message.attachments.map((attachment) => (
-                            attachment.dataUrl ? (
-                              <a
-                                key={attachment.id}
-                                className="attachment attachment-link"
-                                href={attachment.dataUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                {attachment.name} ({attachment.size})
-                              </a>
-                            ) : (
-                              <span key={attachment.id} className="attachment">
-                                {attachment.name} ({attachment.size})
-                              </span>
-                            )
+                            <button
+                              key={attachment.id}
+                              type="button"
+                              className="attachment attachment-link"
+                              onClick={() => {
+                                if ((attachment.mimeType || "").startsWith("image/") || (attachment.mimeType || "").includes("pdf")) {
+                                  setPreviewAttachment({
+                                    name: attachment.name,
+                                    dataUrl: attachment.dataUrl,
+                                    mimeType: attachment.mimeType
+                                  });
+                                  return;
+                                }
+
+                                downloadChatAttachment(attachment);
+                              }}
+                            >
+                              {attachment.name} ({attachment.size})
+                            </button>
                           ))}
                         </div>
                       ) : null}
@@ -1435,6 +1444,40 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
       ) : null}
         </div>
       </section>
+
+      {previewAttachment ? (
+        <div className="attachment-modal-backdrop" onClick={() => setPreviewAttachment(null)}>
+          <div className="attachment-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="section-title" style={{ marginBottom: 12 }}>
+              <div>
+                <p className="eyebrow">Attachment preview</p>
+                <h3>{previewAttachment.name}</h3>
+              </div>
+              <div className="inline-list">
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => downloadChatAttachment(previewAttachment)}
+                >
+                  Download
+                </button>
+                <button type="button" className="button-ghost" onClick={() => setPreviewAttachment(null)}>
+                  Close
+                </button>
+              </div>
+            </div>
+            {previewAttachment.mimeType?.startsWith("image/") ? (
+              <img src={previewAttachment.dataUrl} alt={previewAttachment.name} className="attachment-preview-image" />
+            ) : (
+              <iframe
+                title={previewAttachment.name}
+                src={previewAttachment.dataUrl}
+                className="attachment-preview-frame"
+              />
+            )}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -1837,6 +1880,45 @@ function readFileAsDataUrl(file: File) {
     reader.onerror = () => reject(reader.error ?? new Error("File could not be read."));
     reader.readAsDataURL(file);
   });
+}
+
+function downloadChatAttachment(attachment: {
+  name: string;
+  dataUrl?: string;
+  mimeType?: string;
+}) {
+  if (!attachment.dataUrl) {
+    return;
+  }
+
+  const blob = dataUrlToBlob(attachment.dataUrl);
+  const objectUrl = URL.createObjectURL(blob);
+
+  triggerAttachmentDownload(objectUrl, attachment.name);
+}
+
+function triggerAttachmentDownload(objectUrl: string, filename: string) {
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 2_000);
+}
+
+function dataUrlToBlob(dataUrl: string) {
+  const [header, payload] = dataUrl.split(",");
+  const mimeMatch = header.match(/data:([^;]+);base64/i);
+  const mimeType = mimeMatch?.[1] || "application/octet-stream";
+  const binary = window.atob(payload || "");
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return new Blob([bytes], { type: mimeType });
 }
 
 function buildAdvanceReference(vendorName?: string) {

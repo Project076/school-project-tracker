@@ -536,6 +536,11 @@ function addAudit(project: Project, message: string) {
         return;
       }
 
+      if (input.emailedTo.map((email) => email.trim()).filter(Boolean).length === 0) {
+        pushNotification("To required", "Select at least one recipient in To before sending the chat.");
+        return;
+      }
+
       const attachments = input.attachments.map((attachment, index) => ({
         id: `a-${Date.now()}-${index}`,
         name: attachment.name,

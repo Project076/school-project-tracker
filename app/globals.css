@@ -759,6 +759,45 @@ p {
   text-decoration: none;
 }
 
+.attachment-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+
+.attachment-modal {
+  width: min(960px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  padding: 20px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: var(--glass-glow), var(--shadow);
+}
+
+.attachment-preview-image,
+.attachment-preview-frame {
+  width: 100%;
+  border: 0;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.attachment-preview-image {
+  max-height: 72vh;
+  object-fit: contain;
+}
+
+.attachment-preview-frame {
+  min-height: 72vh;
+}
+
 .form-feedback {
   padding: 10px 12px;
   border-radius: 14px;
