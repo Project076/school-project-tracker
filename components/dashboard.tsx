@@ -15,7 +15,7 @@ type DashboardProps = {
   };
 };
 
-type DashboardTab = "projects" | "users" | "notifications";
+type DashboardTab = "dashboard" | "projects" | "users" | "notifications";
 type UserFormState = {
   name: string;
   email: string;
@@ -40,7 +40,8 @@ export function Dashboard({ filters }: DashboardProps) {
     updateUser,
     users
   } = useAppState();
-  const [activeTab, setActiveTab] = useState<DashboardTab>("projects");
+  const [activeTab, setActiveTab] = useState<DashboardTab>("dashboard");
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [showProjectComposer, setShowProjectComposer] = useState(false);
   const [showUserComposer, setShowUserComposer] = useState(false);
@@ -111,6 +112,7 @@ export function Dashboard({ filters }: DashboardProps) {
   const totalTasksVisible = filteredProjects.reduce((sum, project) => sum + project.tasks.length, 0);
 
   const menuTabs: { id: DashboardTab; label: string }[] = [
+    { id: "dashboard", label: "Dashboard" },
     { id: "projects", label: "Projects" },
     ...(currentUser.role === "Admin" ? [{ id: "users" as const, label: "Users" }] : []),
     { id: "notifications", label: "Notifications" }
@@ -190,9 +192,21 @@ export function Dashboard({ filters }: DashboardProps) {
   return (
     <main className="page-shell">
       <div className="topbar">
-        <div className="compact-title">
-          <p className="eyebrow">School Project Tracker</p>
-          <h3>{roleTitle(currentUser.role)}</h3>
+        <div className="topbar-title-group">
+          <button
+            type="button"
+            className="mobile-menu-button"
+            onClick={() => setShowMobileMenu((value) => !value)}
+            aria-label="Open menu"
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+          <div className="compact-title">
+            <p className="eyebrow">School Project Tracker</p>
+            <h3>{roleTitle(currentUser.role)}</h3>
+          </div>
         </div>
         <div className="inline-list">
           <span className="pill">{hydrated ? "Saved locally" : "Loading"}</span>
@@ -279,7 +293,8 @@ export function Dashboard({ filters }: DashboardProps) {
       </section>
 
       <section className="split-shell" style={{ marginTop: 24 }}>
-        <aside className="sidebar-panel">
+        {showMobileMenu ? <button type="button" className="mobile-menu-backdrop" onClick={() => setShowMobileMenu(false)} aria-label="Close menu" /> : null}
+        <aside className={`sidebar-panel mobile-drawer ${showMobileMenu ? "open" : ""}`}>
           <div className="section-title" style={{ marginBottom: 18 }}>
             <div>
               <p className="eyebrow">Menu</p>
@@ -293,7 +308,10 @@ export function Dashboard({ filters }: DashboardProps) {
                 key={tab.id}
                 type="button"
                 className={`tab-button ${activeTab === tab.id ? "active" : ""}`}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setShowMobileMenu(false);
+                }}
               >
                 {tab.label}
               </button>
@@ -309,6 +327,70 @@ export function Dashboard({ filters }: DashboardProps) {
             </div>
             <span className="pill">{menuTabs.length} sections</span>
           </div>
+
+          {activeTab === "dashboard" ? (
+            <div className="stack">
+              <div className="stats-grid" style={{ marginTop: 0 }}>
+                <MetricCard label="WIP projects" value={wipProjects} note="Projects in progress" />
+                <MetricCard label="Completed" value={completedProjects} note="Finished projects" />
+                <MetricCard label="Visible tasks" value={totalTasksVisible} note="Across your scope" />
+                <MetricCard label="Vendors" value={vendors.length} note="Active project vendors" />
+              </div>
+
+              <div className="panel">
+                <div className="section-title">
+                  <div>
+                    <p className="eyebrow">Dashboard</p>
+                    <h3>Overview</h3>
+                  </div>
+                  <span className="pill">{visibleProjects.length} projects</span>
+                </div>
+
+                <div className="project-metrics">
+                  <div className="project-metric-tile">
+                    <p className="label">Managed projects</p>
+                    <p>{managedProjects.length}</p>
+                  </div>
+                  <div className="project-metric-tile">
+                    <p className="label">Discussion threads</p>
+                    <p>{myProjects.reduce((sum, project) => sum + project.messages.length, 0)}</p>
+                  </div>
+                  <div className="project-metric-tile">
+                    <p className="label">Payments logged</p>
+                    <p>{formatCurrency(totalSpend)}</p>
+                  </div>
+                  <div className="project-metric-tile">
+                    <p className="label">Balance due</p>
+                    <p>{formatCurrency(totalBalance)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="panel">
+                <div className="section-title">
+                  <div>
+                    <p className="eyebrow">Recent projects</p>
+                    <h3>Quick view</h3>
+                  </div>
+                </div>
+                <div className="project-list">
+                  {recentProjects.slice(0, 3).map((project) => (
+                    <ProjectCard
+                      key={project.id}
+                      project={project}
+                      users={users}
+                      canDelete={currentUser.role === "Admin"}
+                      onDelete={() => {
+                        if (window.confirm(`Delete project "${project.title}"? This cannot be undone.`)) {
+                          deleteProject(project.id);
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {activeTab === "projects" ? (
             <>
@@ -734,6 +816,7 @@ function heroTitle(role: string) {
 }
 
 function menuHeading(tab: DashboardTab) {
+  if (tab === "dashboard") return "Dashboard";
   if (tab === "projects") return "Projects";
   if (tab === "users") return "Users";
   return "Notifications";

@@ -53,6 +53,39 @@ a {
   margin-bottom: 16px;
 }
 
+.topbar-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mobile-menu-button {
+  display: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: linear-gradient(135deg, rgba(92, 201, 255, 0.95), rgba(79, 70, 229, 0.88));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), 0 12px 24px rgba(26, 41, 87, 0.18);
+  cursor: pointer;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-direction: column;
+}
+
+.mobile-menu-button span {
+  width: 20px;
+  height: 2px;
+  border-radius: 999px;
+  background: white;
+}
+
+.mobile-menu-backdrop {
+  display: none;
+}
+
 .hero {
   padding: 24px 28px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.44), rgba(238, 244, 255, 0.24));
@@ -915,6 +948,20 @@ button {
     padding-top: 14px;
   }
 
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .topbar-title-group {
+    width: 100%;
+  }
+
+  .mobile-menu-button {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
   .hero,
   .metric,
   .panel,
@@ -982,6 +1029,35 @@ button {
 
   .sidebar-panel {
     position: static;
+  }
+
+  .mobile-menu-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    border: 0;
+    background: rgba(15, 23, 42, 0.24);
+    z-index: 20;
+  }
+
+  .mobile-drawer {
+    position: fixed;
+    top: 14px;
+    left: 10px;
+    right: 10px;
+    transform: translateY(-18px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease, transform 160ms ease;
+    z-index: 30;
+    max-height: calc(100vh - 28px);
+    overflow: auto;
+  }
+
+  .mobile-drawer.open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
   }
 
   h1 {

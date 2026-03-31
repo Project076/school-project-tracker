@@ -69,6 +69,7 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
   const [completionMessage, setCompletionMessage] = useState("");
   const [expandedPurchaseRequests, setExpandedPurchaseRequests] = useState<Record<string, boolean>>({});
   const [expandedReferences, setExpandedReferences] = useState<Record<string, boolean>>({});
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const invoiceAttachmentInputRef = useRef<HTMLInputElement | null>(null);
   const chatBodyInputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -210,7 +211,21 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
 
   return (
     <main className="page-shell detail-shell">
-      <Link href="/" className="pill">Back to dashboard</Link>
+      <div className="topbar">
+        <div className="topbar-title-group">
+          <button
+            type="button"
+            className="mobile-menu-button"
+            onClick={() => setShowMobileMenu((value) => !value)}
+            aria-label="Open project menu"
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+          <Link href="/" className="pill">Back to dashboard</Link>
+        </div>
+      </div>
 
       <section className="hero" style={{ marginTop: 18 }}>
         <div className="detail-header">
@@ -248,7 +263,8 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
       </section>
 
       <section className="split-shell" style={{ marginTop: 20 }}>
-        <aside className="sidebar-panel">
+        {showMobileMenu ? <button type="button" className="mobile-menu-backdrop" onClick={() => setShowMobileMenu(false)} aria-label="Close project menu" /> : null}
+        <aside className={`sidebar-panel mobile-drawer ${showMobileMenu ? "open" : ""}`}>
           <div className="section-title" style={{ marginBottom: 18 }}>
             <div>
               <p className="eyebrow">Project menu</p>
@@ -261,7 +277,10 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
                 key={tab}
                 type="button"
                 className={`tab-button ${activeTab === tab ? "active" : ""}`}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  setActiveTab(tab);
+                  setShowMobileMenu(false);
+                }}
               >
                 {tab[0].toUpperCase() + tab.slice(1)}
               </button>
