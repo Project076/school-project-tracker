@@ -4,6 +4,13 @@ declare module "mailparser" {
     subject?: string;
     text?: string;
     date?: Date;
+    attachments?: Array<{
+      filename?: string;
+      contentType?: string;
+      contentDisposition?: string;
+      content: Buffer;
+      size?: number;
+    }>;
     from?: {
       value?: Array<{
         name?: string;

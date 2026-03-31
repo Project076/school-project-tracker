@@ -24,6 +24,8 @@ type SendMessageInput = {
     name: string;
     type: "PDF" | "DOCX" | "Image";
     size: string;
+    mimeType?: string;
+    dataUrl?: string;
   }>;
 };
 
@@ -94,6 +96,13 @@ type InboundEmailReply = {
   body: string;
   sentAt: string;
   subject: string;
+  attachments?: Array<{
+    name: string;
+    type: "PDF" | "DOCX" | "Image";
+    size: string;
+    mimeType?: string;
+    dataUrl?: string;
+  }>;
 };
 
 type AppStateValue = {
@@ -532,7 +541,9 @@ function addAudit(project: Project, message: string) {
         name: attachment.name,
         type: attachment.type,
         size: attachment.size,
-        uploadedBy: currentUser.id
+        uploadedBy: currentUser.id,
+        mimeType: attachment.mimeType,
+        dataUrl: attachment.dataUrl
       }));
       const recipientEmails = Array.from(
         new Set(
@@ -592,17 +603,24 @@ function addAudit(project: Project, message: string) {
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({
-            projectId,
-            projectTitle: targetProject.title,
-            projectCode: targetProject.code,
-            authorName: currentUser.name,
-            authorEmail: currentUser.email,
-            body: input.body,
-            history: historyForEmail,
-            to: nextMessage.emailedTo,
-            cc: nextMessage.cc
-          })
+            body: JSON.stringify({
+              projectId,
+              projectTitle: targetProject.title,
+              projectCode: targetProject.code,
+              authorName: currentUser.name,
+              authorEmail: currentUser.email,
+              body: input.body,
+              attachments: attachments.map((attachment) => ({
+                name: attachment.name,
+                type: attachment.type,
+                size: attachment.size,
+                mimeType: attachment.mimeType,
+                dataUrl: attachment.dataUrl
+              })),
+              history: historyForEmail,
+              to: nextMessage.emailedTo,
+              cc: nextMessage.cc
+            })
         });
 
         if (!response.ok) {
@@ -665,7 +683,15 @@ function addAudit(project: Project, message: string) {
                         emailedTo: [],
                         cc: [],
                         direction: "Email",
-                        attachments: []
+                        attachments: (reply.attachments ?? []).map((attachment, index) => ({
+                          id: `ea-${reply.externalId}-${index}`,
+                          name: attachment.name,
+                          type: attachment.type,
+                          size: attachment.size,
+                          uploadedBy: "external-email",
+                          mimeType: attachment.mimeType,
+                          dataUrl: attachment.dataUrl
+                        }))
                       }) satisfies ChatMessage
                   ),
                   ...project.messages

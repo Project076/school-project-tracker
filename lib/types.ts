@@ -29,6 +29,8 @@ export interface Attachment {
   type: AttachmentType;
   size: string;
   uploadedBy: string;
+  mimeType?: string;
+  dataUrl?: string;
 }
 
 export interface ChatMessage {

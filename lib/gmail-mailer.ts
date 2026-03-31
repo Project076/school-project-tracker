@@ -7,6 +7,13 @@ type OutboundChatEmailInput = {
   authorName: string;
   authorEmail: string;
   body: string;
+  attachments?: Array<{
+    name: string;
+    type: "PDF" | "DOCX" | "Image";
+    size: string;
+    mimeType?: string;
+    dataUrl?: string;
+  }>;
   history?: Array<{
     authorName: string;
     body: string;
@@ -42,6 +49,7 @@ export async function sendProjectChatEmail(input: OutboundChatEmailInput) {
   const threadToken = `project-thread:${input.projectId}`;
   const subject = `[${input.projectCode}] ${input.projectTitle}`;
   const history = input.history ?? [];
+  const outgoingAttachments = (input.attachments ?? []).filter((attachment) => attachment.dataUrl);
   const historyText = history.length
     ? `\n\nProject chat history:\n${history
         .map(
@@ -87,7 +95,8 @@ export async function sendProjectChatEmail(input: OutboundChatEmailInput) {
       `Project: ${input.projectTitle} (${input.projectCode})\n` +
       `Thread token: ${threadToken}\n` +
       `Reply address: ${projectReplyAddress}\n` +
-      `Reply instruction: Please use Reply all and keep ${projectReplyAddress} in To/CC so the reply syncs back into the app.\n\n` +
+      `Reply instruction: Please use Reply all and keep ${projectReplyAddress} in To/CC so the reply syncs back into the app.\n` +
+      `${outgoingAttachments.length ? `Attachments: ${outgoingAttachments.map((attachment) => attachment.name).join(", ")}\n\n` : "\n"}` +
       `${input.body}` +
       historyText,
     html: `
@@ -100,12 +109,23 @@ export async function sendProjectChatEmail(input: OutboundChatEmailInput) {
           <strong>Reply instruction:</strong> Please use <strong>Reply all</strong> and keep
           <strong> ${escapeHtml(projectReplyAddress)}</strong> in To/CC so the reply syncs back into the app.
         </div>
+        ${outgoingAttachments.length ? `
+          <div style="margin-top: 12px;">
+            <p style="margin: 0 0 6px;"><strong>Attachments</strong></p>
+            <p style="margin: 0; color: #52627d;">${outgoingAttachments.map((attachment) => escapeHtml(attachment.name)).join(", ")}</p>
+          </div>
+        ` : ""}
         <div style="padding: 12px 14px; background: #f7f1e7; border-radius: 10px; margin-top: 12px;">
           ${escapeHtml(input.body).replace(/\n/g, "<br />")}
         </div>
         ${historyHtml}
       </div>
-    `
+    `,
+    attachments: outgoingAttachments.map((attachment) => ({
+      filename: attachment.name,
+      contentType: attachment.mimeType,
+      path: attachment.dataUrl
+    }))
   });
 }
 

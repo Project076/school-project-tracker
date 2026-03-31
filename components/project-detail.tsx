@@ -22,7 +22,18 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
   const resolvedProjectId = projectId ?? params.id;
   const project = state.projects.find((item) => item.id === resolvedProjectId);
   const [activeTab, setActiveTab] = useState<DetailTab>("chat");
-  const [messageForm, setMessageForm] = useState({ body: "", emailedTo: [] as string[], cc: [] as string[] });
+  const [messageForm, setMessageForm] = useState({
+    body: "",
+    emailedTo: [] as string[],
+    cc: [] as string[],
+    attachments: [] as Array<{
+      name: string;
+      type: "PDF" | "DOCX" | "Image";
+      size: string;
+      mimeType?: string;
+      dataUrl?: string;
+    }>
+  });
   const [showChatComposer, setShowChatComposer] = useState(false);
   const [toSearch, setToSearch] = useState("");
   const [ccSearch, setCcSearch] = useState("");
@@ -72,6 +83,7 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const invoiceAttachmentInputRef = useRef<HTMLInputElement | null>(null);
   const chatBodyInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const chatAttachmentInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated || activeTab !== "chat") {
@@ -209,6 +221,27 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
     }
   }
 
+  async function handleChatAttachments(files: FileList | null) {
+    if (!files?.length) {
+      return;
+    }
+
+    const nextAttachments = await Promise.all(
+      Array.from(files).map(async (file) => ({
+        name: file.name,
+        type: getAttachmentType(file),
+        size: formatUploadSize(file.size),
+        mimeType: file.type,
+        dataUrl: await readFileAsDataUrl(file)
+      }))
+    );
+
+    setMessageForm((value) => ({
+      ...value,
+      attachments: [...value.attachments, ...nextAttachments]
+    }));
+  }
+
   return (
     <main className="page-shell detail-shell">
       <div className="topbar">
@@ -320,13 +353,16 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
                         body: messageForm.body,
                         emailedTo: messageForm.emailedTo,
                         cc: messageForm.cc,
-                        attachments: []
+                        attachments: messageForm.attachments
                       });
-                      setMessageForm({ body: "", emailedTo: [], cc: [] });
+                      setMessageForm({ body: "", emailedTo: [], cc: [], attachments: [] });
                       setToSearch("");
                       setCcSearch("");
                       setMentionQuery("");
                       setMentionRange(null);
+                      if (chatAttachmentInputRef.current) {
+                        chatAttachmentInputRef.current.value = "";
+                      }
                     }}
                   >
                     <p className="eyebrow">Compose</p>
@@ -459,7 +495,45 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
                     <div className="inline-list" style={{ marginTop: 12 }}>
                       <span className="pill">To: {messageForm.emailedTo.length}</span>
                       <span className="pill">CC: {messageForm.cc.length}</span>
+                      <button
+                        type="button"
+                        className="button-secondary"
+                        onClick={() => chatAttachmentInputRef.current?.click()}
+                      >
+                        Attach file
+                      </button>
                     </div>
+                    <input
+                      ref={chatAttachmentInputRef}
+                      type="file"
+                      hidden
+                      accept=".pdf,.doc,.docx,image/*"
+                      multiple
+                      onChange={(event) => {
+                        void handleChatAttachments(event.target.files);
+                      }}
+                    />
+                    {messageForm.attachments.length > 0 ? (
+                      <div className="inline-list attachment-preview-list" style={{ marginTop: 12 }}>
+                        {messageForm.attachments.map((attachment) => (
+                          <button
+                            key={`${attachment.name}-${attachment.size}`}
+                            type="button"
+                            className="attachment attachment-chip"
+                            onClick={() =>
+                              setMessageForm((value) => ({
+                                ...value,
+                                attachments: value.attachments.filter(
+                                  (item) => !(item.name === attachment.name && item.size === attachment.size)
+                                )
+                              }))
+                            }
+                          >
+                            {attachment.name} ({attachment.size})
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                     <textarea
                       ref={chatBodyInputRef}
                       style={{ ...formInputStyle, minHeight: 100, marginTop: 12, resize: "vertical" }}
@@ -539,6 +613,27 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
                       </div>
                       <div className="divider" />
                       <p>{message.body}</p>
+                      {message.attachments.length > 0 ? (
+                        <div className="inline-list attachment-preview-list" style={{ marginTop: 12 }}>
+                          {message.attachments.map((attachment) => (
+                            attachment.dataUrl ? (
+                              <a
+                                key={attachment.id}
+                                className="attachment attachment-link"
+                                href={attachment.dataUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                {attachment.name} ({attachment.size})
+                              </a>
+                            ) : (
+                              <span key={attachment.id} className="attachment">
+                                {attachment.name} ({attachment.size})
+                              </span>
+                            )
+                          ))}
+                        </div>
+                      ) : null}
                     </article>
                   );
                 })}
@@ -1724,6 +1819,24 @@ function formatFileSize(bytes: number) {
   }
 
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatUploadSize(bytes: number) {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  return formatFileSize(bytes);
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(reader.error ?? new Error("File could not be read."));
+    reader.readAsDataURL(file);
+  });
 }
 
 function buildAdvanceReference(vendorName?: string) {

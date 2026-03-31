@@ -12,6 +12,13 @@ export async function POST(request: Request) {
       authorName: string;
       authorEmail: string;
       body: string;
+      attachments?: Array<{
+        name: string;
+        type: "PDF" | "DOCX" | "Image";
+        size: string;
+        mimeType?: string;
+        dataUrl?: string;
+      }>;
       history?: Array<{
         authorName: string;
         body: string;

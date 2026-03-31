@@ -11,6 +11,13 @@ export type SyncedEmailReply = {
   body: string;
   sentAt: string;
   subject: string;
+  attachments: Array<{
+    name: string;
+    type: "PDF" | "DOCX" | "Image";
+    size: string;
+    mimeType?: string;
+    dataUrl?: string;
+  }>;
 };
 
 type EmailSyncStore = {
@@ -92,7 +99,16 @@ export async function syncInboundRepliesFromGmail() {
         authorEmail,
         body,
         sentAt: parsed.date?.toISOString() ?? message.internalDate.toISOString(),
-        subject: parsed.subject || ""
+        subject: parsed.subject || "",
+        attachments: (parsed.attachments ?? [])
+          .filter((attachment) => attachment.contentDisposition !== "inline")
+          .map((attachment, index) => ({
+            name: attachment.filename || `attachment-${index + 1}`,
+            type: resolveAttachmentType(attachment.contentType || "", attachment.filename || ""),
+            size: formatAttachmentSize(attachment.size ?? attachment.content.length),
+            mimeType: attachment.contentType,
+            dataUrl: `data:${attachment.contentType || "application/octet-stream"};base64,${attachment.content.toString("base64")}`
+          }))
       };
 
       discoveredReplies.push(reply);
@@ -196,4 +212,31 @@ function extractLatestReply(text: string) {
     .trim();
 
   return candidate;
+}
+
+function resolveAttachmentType(contentType: string, filename: string) {
+  const normalized = `${contentType} ${filename}`.toLowerCase();
+
+  if (normalized.includes("image/")) {
+    return "Image";
+  }
+
+  if (normalized.includes("pdf")) {
+    return "PDF";
+  }
+
+  return "DOCX";
+}
+
+function formatAttachmentSize(sizeInBytes: number) {
+  if (sizeInBytes < 1024) {
+    return `${sizeInBytes} B`;
+  }
+
+  const sizeInKb = sizeInBytes / 1024;
+  if (sizeInKb < 1024) {
+    return `${Math.max(1, Math.round(sizeInKb))} KB`;
+  }
+
+  return `${(sizeInKb / 1024).toFixed(1)} MB`;
 }

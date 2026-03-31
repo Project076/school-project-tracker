@@ -743,6 +743,22 @@ p {
   cursor: pointer;
 }
 
+.attachment-preview-list {
+  gap: 10px;
+}
+
+.attachment-chip,
+.attachment-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.attachment-link {
+  text-decoration: none;
+}
+
 .form-feedback {
   padding: 10px 12px;
   border-radius: 14px;
