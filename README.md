@@ -10,14 +10,36 @@ This workspace contains a Next.js starter tailored to the project specification 
 - Email sync-ready data model showing outbound app-to-email and inbound email-to-app metadata
 - Real-time notification ready UI sections
 
-## Suggested production architecture
+## Shared auth and storage
 
-1. `Next.js` app for UI and API routes.
-2. `PostgreSQL` for users, projects, messages, attachments, PRs, invoices, payments, and audit events.
-3. `NextAuth` or your preferred SSO for role-based access.
-4. `Resend`, `SendGrid`, or `Microsoft Graph` for outbound email notifications.
-5. An inbound email webhook that validates sender, identifies the project thread, strips quoted replies, stores attachments, and posts the parsed reply back to chat.
-6. WebSockets or Pusher/Ably for real-time in-app notifications.
+This app now supports a shared Supabase-backed mode so the same users can sign in from different computers and phones.
+
+### What Supabase stores
+
+- Auth users and passwords through `Supabase Auth`
+- Role/profile records in `public.app_profiles`
+- Full shared project state in `public.app_projects`
+
+### One-time Supabase setup
+
+1. Create a Supabase project.
+2. Open the SQL editor in Supabase.
+3. Paste the contents of [`supabase/schema.sql`](./supabase/schema.sql) and run it.
+4. Copy these values into `.env.local` and your Vercel environment variables:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+GMAIL_USER=yourgmail@gmail.com
+GMAIL_APP_PASSWORD=your-16-character-app-password
+GMAIL_FROM_NAME=School Project Tracker
+GMAIL_FROM_ADDRESS=yourgmail@gmail.com
+```
+
+5. Start the app.
+6. On the first launch, use the login page to create the first Admin account.
+7. After that, the Admin can create all other users from the `Users` section.
 
 ## Core rules encoded in the starter
 
@@ -32,17 +54,6 @@ This workspace contains a Next.js starter tailored to the project specification 
 ```bash
 npm install
 npm run dev
-```
-
-## Gmail setup for chat email
-
-To send real chat emails through Gmail, create `.env.local` in the project root and add:
-
-```bash
-GMAIL_USER=yourgmail@gmail.com
-GMAIL_APP_PASSWORD=your-16-character-app-password
-GMAIL_FROM_NAME=School Project Tracker
-GMAIL_FROM_ADDRESS=yourgmail@gmail.com
 ```
 
 Use a Gmail App Password, not your normal Gmail password.

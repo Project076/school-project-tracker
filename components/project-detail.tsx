@@ -676,9 +676,9 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
                 {canManageTasks && showTaskComposer ? (
                   <form
                     className="task-item"
-                    onSubmit={(event) => {
+                    onSubmit={async (event) => {
                       event.preventDefault();
-                      state.addTask(project.id, {
+                      await state.addTask(project.id, {
                         title: taskForm.title,
                         ownerId: state.currentUser.id,
                         dueDate: taskForm.dueDate,
@@ -720,9 +720,9 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
                             <select
                               style={formInputStyle}
                               value={task.status}
-                              onChange={(event) =>
-                                state.updateTaskStatus(project.id, task.id, event.target.value as Task["status"])
-                              }
+                              onChange={async (event) => {
+                                await state.updateTaskStatus(project.id, task.id, event.target.value as Task["status"]);
+                              }}
                             >
                               <option value="Open">Open</option>
                               <option value="In Progress">In Progress</option>
@@ -738,9 +738,9 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
                           <button
                             type="button"
                             className="button-danger"
-                            onClick={() => {
+                            onClick={async () => {
                               if (window.confirm(`Delete task "${task.title}"?`)) {
-                                state.deleteTask(project.id, task.id);
+                                await state.deleteTask(project.id, task.id);
                               }
                             }}
                           >
@@ -834,9 +834,9 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
                   {activeFinanceComposer === "pr" ? (
                     <form
                       className="finance-card stack"
-                      onSubmit={(event) => {
+                      onSubmit={async (event) => {
                         event.preventDefault();
-                        const result = state.addPurchaseRequest(project.id, {
+                        const result = await state.addPurchaseRequest(project.id, {
                           requestNumber: prForm.requestNumber,
                           amount: Number(prForm.amount)
                         });
@@ -873,9 +873,9 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
                   {activeFinanceComposer === "invoice" ? (
                     <form
                       className="finance-card stack"
-                      onSubmit={(event) => {
+                      onSubmit={async (event) => {
                         event.preventDefault();
-                        const result = state.addInvoice(project.id, {
+                        const result = await state.addInvoice(project.id, {
                           prId: invoiceForm.prId,
                           againstType: invoiceForm.againstType,
                           againstReference:
@@ -1070,9 +1070,9 @@ export function ProjectDetail({ projectId }: { projectId?: string } = {}) {
                   {activeFinanceComposer === "payment" ? (
                     <form
                       className="finance-card stack"
-                      onSubmit={(event) => {
+                      onSubmit={async (event) => {
                         event.preventDefault();
-                        const result = state.addPayment(project.id, {
+                        const result = await state.addPayment(project.id, {
                           prId: paymentForm.prId,
                           invoiceId: paymentForm.kind === "Payment" ? paymentForm.invoiceId : undefined,
                           advanceMode: paymentForm.kind === "Advance" ? paymentForm.advanceMode : undefined,

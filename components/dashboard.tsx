@@ -25,6 +25,8 @@ type UserFormState = {
 
 export function Dashboard({ filters }: DashboardProps) {
   const {
+    backendMode,
+    bootstrapAdmin,
     createProject,
     createUser,
     currentUser,
@@ -37,6 +39,7 @@ export function Dashboard({ filters }: DashboardProps) {
     projects,
     signIn,
     signOut,
+    setupStatus,
     updateUser,
     users
   } = useAppState();
@@ -65,6 +68,12 @@ export function Dashboard({ filters }: DashboardProps) {
     password: ""
   });
   const [authFeedback, setAuthFeedback] = useState("");
+  const [bootstrapForm, setBootstrapForm] = useState({
+    name: "",
+    email: "",
+    password: ""
+  });
+  const [bootstrapFeedback, setBootstrapFeedback] = useState("");
 
   useEffect(() => {
     setProjectSearch(filters.q ?? "");
@@ -142,46 +151,109 @@ export function Dashboard({ filters }: DashboardProps) {
           <div className="panel stack" style={{ gap: 18 }}>
             <div className="compact-title">
               <p className="eyebrow">School Project Tracker</p>
-              <h2>Sign in</h2>
+              <h2>{backendMode === "supabase" && setupStatus === "needs-bootstrap" ? "Create first admin" : "Sign in"}</h2>
             </div>
-            <p className="subtle">Only logged-in users can open the dashboard. Admin can create more users after signing in.</p>
-            <form
-              className="stack"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const result = signIn(authForm.email, authForm.password);
-                setAuthFeedback(result.message);
+            <p className="subtle">
+              {backendMode === "supabase"
+                ? setupStatus === "checking"
+                  ? "Checking the shared workspace setup."
+                  : setupStatus === "needs-bootstrap"
+                    ? "This is the first time the shared workspace is being used. Create the first Admin account, then sign in from any computer or phone."
+                    : "Only logged-in users can open the dashboard. Admin can create more users after signing in."
+                : "Only logged-in users can open the dashboard. Admin can create more users after signing in."}
+            </p>
 
-                if (result.ok) {
-                  setAuthForm({ email: "", password: "" });
-                }
-              }}
-            >
-              <input
-                placeholder="Email"
-                style={inputStyle}
-                value={authForm.email}
-                onChange={(event) => setAuthForm((value) => ({ ...value, email: event.target.value }))}
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                style={inputStyle}
-                value={authForm.password}
-                onChange={(event) => setAuthForm((value) => ({ ...value, password: event.target.value }))}
-              />
-              {authFeedback ? (
-                <div className={`form-feedback ${authFeedback.startsWith("Welcome") ? "success" : "error"}`}>
-                  {authFeedback}
-                </div>
-              ) : null}
-              <button className="button-primary" type="submit">
-                Sign in
-              </button>
-            </form>
+            {backendMode === "supabase" && setupStatus === "checking" ? (
+              <div className="activity-item">
+                <p className="subtle">Checking setup...</p>
+              </div>
+            ) : null}
+
+            {backendMode === "supabase" && setupStatus === "needs-bootstrap" ? (
+              <form
+                className="stack"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  const result = await bootstrapAdmin(bootstrapForm);
+                  setBootstrapFeedback(result.message);
+
+                  if (result.ok) {
+                    setBootstrapForm({ name: "", email: "", password: "" });
+                  }
+                }}
+              >
+                <input
+                  placeholder="Admin name"
+                  style={inputStyle}
+                  value={bootstrapForm.name}
+                  onChange={(event) => setBootstrapForm((value) => ({ ...value, name: event.target.value }))}
+                />
+                <input
+                  placeholder="Admin email"
+                  style={inputStyle}
+                  value={bootstrapForm.email}
+                  onChange={(event) => setBootstrapForm((value) => ({ ...value, email: event.target.value }))}
+                />
+                <input
+                  type="password"
+                  placeholder="Admin password"
+                  style={inputStyle}
+                  value={bootstrapForm.password}
+                  onChange={(event) => setBootstrapForm((value) => ({ ...value, password: event.target.value }))}
+                />
+                {bootstrapFeedback ? (
+                  <div className={`form-feedback ${bootstrapFeedback.includes("created") ? "success" : "error"}`}>
+                    {bootstrapFeedback}
+                  </div>
+                ) : null}
+                <button className="button-primary" type="submit">
+                  Create first admin
+                </button>
+              </form>
+            ) : (
+              <form
+                className="stack"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  const result = await signIn(authForm.email, authForm.password);
+                  setAuthFeedback(result.message);
+
+                  if (result.ok) {
+                    setAuthForm({ email: "", password: "" });
+                  }
+                }}
+              >
+                <input
+                  placeholder="Email"
+                  style={inputStyle}
+                  value={authForm.email}
+                  onChange={(event) => setAuthForm((value) => ({ ...value, email: event.target.value }))}
+                />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  style={inputStyle}
+                  value={authForm.password}
+                  onChange={(event) => setAuthForm((value) => ({ ...value, password: event.target.value }))}
+                />
+                {authFeedback ? (
+                  <div className={`form-feedback ${authFeedback.toLowerCase().includes("success") || authFeedback.toLowerCase().includes("welcome") ? "success" : "error"}`}>
+                    {authFeedback}
+                  </div>
+                ) : null}
+                <button className="button-primary" type="submit">
+                  Sign in
+                </button>
+              </form>
+            )}
+
             <div className="activity-item">
-              <p className="label">Starter access</p>
-              <p className="subtle">Use the initial admin account details provided during setup, then create role-based users from the Admin panel.</p>
+              <p className="label">{backendMode === "supabase" ? "Shared workspace" : "Starter access"}</p>
+              <p className="subtle">
+                {backendMode === "supabase"
+                  ? "Users, passwords, projects, and chat are now designed to live in Supabase so the same login works across different devices."
+                  : "Use the initial admin account details provided during setup, then create role-based users from the Admin panel."}
+              </p>
             </div>
           </div>
         </section>
@@ -380,9 +452,9 @@ export function Dashboard({ filters }: DashboardProps) {
                       project={project}
                       users={users}
                       canDelete={currentUser.role === "Admin"}
-                      onDelete={() => {
+                      onDelete={async () => {
                         if (window.confirm(`Delete project "${project.title}"? This cannot be undone.`)) {
-                          deleteProject(project.id);
+                          await deleteProject(project.id);
                         }
                       }}
                     />
@@ -416,9 +488,9 @@ export function Dashboard({ filters }: DashboardProps) {
                   {showProjectComposer ? (
                     <form
                       className="compact-create-form"
-                      onSubmit={(event) => {
+                      onSubmit={async (event) => {
                         event.preventDefault();
-                        createProject({
+                        await createProject({
                           title: projectForm.title
                         });
                         setProjectForm((value) => ({
@@ -492,9 +564,9 @@ export function Dashboard({ filters }: DashboardProps) {
                             project={project}
                             users={users}
                             canDelete={currentUser.role === "Admin"}
-                            onDelete={() => {
+                            onDelete={async () => {
                               if (window.confirm(`Delete project "${project.title}"? This cannot be undone.`)) {
-                                deleteProject(project.id);
+                                await deleteProject(project.id);
                               }
                             }}
                           />
@@ -535,9 +607,9 @@ export function Dashboard({ filters }: DashboardProps) {
                             project={project}
                             users={users}
                             canDelete={currentUser.role === "Admin"}
-                            onDelete={() => {
+                            onDelete={async () => {
                               if (window.confirm(`Delete project "${project.title}"? This cannot be undone.`)) {
-                                deleteProject(project.id);
+                                await deleteProject(project.id);
                               }
                             }}
                           />
@@ -580,16 +652,16 @@ export function Dashboard({ filters }: DashboardProps) {
                 {(showUserComposer || Boolean(editingUserId)) ? (
                   <form
                     className="stack"
-                    onSubmit={(event) => {
+                    onSubmit={async (event) => {
                       event.preventDefault();
 
                       if (editingUserId) {
-                        updateUser({
+                        await updateUser({
                           userId: editingUserId,
                           ...userForm
                         });
                       } else {
-                        createUser(userForm);
+                        await createUser(userForm);
                       }
 
                       resetUserForm();
@@ -673,12 +745,12 @@ export function Dashboard({ filters }: DashboardProps) {
                         <button
                           type="button"
                           className="button-ghost"
-                          onClick={() => {
+                          onClick={async () => {
                             if (editingUserId === user.id) {
                               resetUserForm();
                             }
                             if (window.confirm(`Delete user "${user.name}" from active users?`)) {
-                              deleteUser(user.id);
+                              await deleteUser(user.id);
                             }
                           }}
                         >

@@ -20,6 +20,7 @@
     "@capacitor/cli": "7.1.0",
     "@capacitor/core": "7.1.0",
     "@capacitor/ios": "7.1.0",
+    "@supabase/supabase-js": "^2.101.1",
     "imapflow": "1.0.187",
     "mailparser": "3.7.4",
     "next": "^15.3.8",
