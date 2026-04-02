@@ -1294,6 +1294,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         return { ok: false, message };
       }
 
+      const normalizedRequestNumber = input.requestNumber.trim().toLowerCase();
+      const existingRequest = targetProject.purchaseRequests.find(
+        (request) => request.requestNumber.trim().toLowerCase() === normalizedRequestNumber
+      );
+
       const request: PurchaseRequest = {
         id: `pr-${Date.now()}`,
         requestNumber: input.requestNumber,
@@ -1306,10 +1311,27 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       };
 
       const updatedProject = applyProjectUpdate(projectId, (project) =>
-        addAudit({ ...project, purchaseRequests: [request, ...project.purchaseRequests] }, "Purchase request raised")
+        addAudit(
+          {
+            ...project,
+            purchaseRequests: existingRequest
+              ? project.purchaseRequests.map((item) =>
+                  item.id === existingRequest.id
+                    ? {
+                        ...item,
+                        amount: item.amount + input.amount
+                      }
+                    : item
+                )
+              : [request, ...project.purchaseRequests]
+          },
+          existingRequest ? "Purchase request amount updated" : "Purchase request raised"
+        )
       );
 
-      const message = `${request.requestNumber} was added to the project.`;
+      const message = existingRequest
+        ? `${existingRequest.requestNumber} was updated by INR ${input.amount.toLocaleString("en-IN")}.`
+        : `${request.requestNumber} was added to the project.`;
 
       if (updatedProject) {
         try {
