@@ -69,7 +69,10 @@ export async function getAuthorizedProfile(request: Request) {
     throw new Error("Invalid session.");
   }
 
-  const { data: profile, error: profileError } = await supabase
+  // Verify the JWT with the public client, then load the matching profile
+  // through the service-role client so RLS does not block server-side admin routes.
+  const adminClient = getSupabaseAdminClient();
+  const { data: profile, error: profileError } = await adminClient
     .from("app_profiles")
     .select("id, email, name, role, active")
     .eq("id", user.id)
