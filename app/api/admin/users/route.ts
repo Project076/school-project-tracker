@@ -71,6 +71,7 @@ export async function POST(request: Request) {
     });
 
     if (profileError) {
+      await supabase.auth.admin.deleteUser(createdUser.user.id);
       throw profileError;
     }
 
@@ -268,16 +269,14 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const { error: updateError } = await supabase
-      .from("app_profiles")
-      .update({
-        active: false,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", userId);
+    const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(userId);
+    if (deleteAuthError) {
+      throw deleteAuthError;
+    }
 
-    if (updateError) {
-      throw updateError;
+    const { error: deleteProfileError } = await supabase.from("app_profiles").delete().eq("id", userId);
+    if (deleteProfileError) {
+      throw deleteProfileError;
     }
 
     return NextResponse.json({
