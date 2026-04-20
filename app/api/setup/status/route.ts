@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isSupabaseServerConfigured, getSupabaseAdminClient } from "@/lib/supabase/admin";
 
+export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET() {
@@ -37,4 +38,3 @@ export async function GET() {
     );
   }
 }
-

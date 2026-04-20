@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdminClient, isSupabaseServerConfigured } from "@/lib/supabase/admin";
 import { UserRole } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
@@ -95,4 +96,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
